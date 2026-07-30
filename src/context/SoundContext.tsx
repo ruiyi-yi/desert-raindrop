@@ -58,13 +58,25 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // === BGM ===
+  // === BGM (wait for load before playing - large file needs buffering) ===
   const startBGM = useCallback(() => {
     if (bgmAudioRef.current) { bgmAudioRef.current.pause(); bgmAudioRef.current = null; }
     const a = new Audio(import.meta.env.BASE_URL + 'bgm.mp3');
     a.loop = true;
     a.volume = 0.15;
-    a.play().catch(() => {});
+    a.preload = 'auto';
+    // Play once data is ready; fallback: try direct play anyway
+    const playWhenReady = () => { a.play().catch(() => {}); };
+    if (a.readyState >= 2) {
+      playWhenReady();
+    } else {
+      a.addEventListener('canplay', playWhenReady, { once: true });
+      a.load();
+      // Safety timeout: if 'canplay' doesn't fire within 5s, try anyway
+      setTimeout(() => {
+        if (a.readyState < 2) playWhenReady();
+      }, 5000);
+    }
     bgmAudioRef.current = a;
   }, []);
 
