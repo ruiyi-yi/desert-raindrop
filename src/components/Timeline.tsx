@@ -178,10 +178,8 @@ const Timeline: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     onMouseEnter={() => setHoveredId(memory.id)}
                     onMouseLeave={() => setHoveredId(null)}
                     className="relative block"
-                    whileHover={{ scale: 1.15 }}
+                    whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    animate={matched ? { scale: [1, 1.3, 1, 1.2, 1] } : {}}
-                    transition={matched ? { duration: 0.8, ease: 'easeInOut' } : {}}
                   >
                     {/* Glow ring — brighter when matched */}
                     <motion.div
@@ -189,10 +187,10 @@ const Timeline: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       style={{ background: matched ? 'rgba(126,200,227,0.35)' : 'rgba(160,210,235,0.15)' }}
                       animate={
                         matched
-                          ? { scale: [1, 1.8, 1], opacity: [0.4, 0.8, 0.4] }
-                          : hoveredId === memory.id ? { scale: [1, 1.4, 1], opacity: [0.3, 0.6, 0.3] } : {}
+                          ? { opacity: [0.5, 0.9, 0.5] }
+                          : hoveredId === memory.id ? { opacity: [0.15, 0.5, 0.15] } : {}
                       }
-                      transition={{ duration: matched ? 0.8 : 2, repeat: matched ? 1 : Infinity, ease: 'easeInOut' }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                     />
                     <div className="relative w-5 h-6">
                       <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
