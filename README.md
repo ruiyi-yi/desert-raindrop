@@ -1,4 +1,4 @@
-# 🌧️ 沙漠一粒雨
+#  沙漠一粒雨
 
 > 上线地址：https://ruiyi-yi.github.io/desert-raindrop
 
