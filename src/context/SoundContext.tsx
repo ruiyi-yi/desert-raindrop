@@ -43,7 +43,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // === Rain loop — plain HTML Audio ===
   const startRain = useCallback(() => {
-    const a = new Audio('/rain-ambient.wav');
+    const a = new Audio(import.meta.env.BASE_URL + 'rain-ambient.wav');
     a.loop = true;
     a.volume = 0.1;
     a.play().catch(() => {});
@@ -61,7 +61,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // === BGM ===
   const startBGM = useCallback(() => {
     if (bgmAudioRef.current) { bgmAudioRef.current.pause(); bgmAudioRef.current = null; }
-    const a = new Audio('/bgm.mp3');
+    const a = new Audio(import.meta.env.BASE_URL + 'bgm.mp3');
     a.loop = true;
     a.volume = 0.15;
     a.play().catch(() => {});
