@@ -31,9 +31,23 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return chimeCtxRef.current;
   }, []);
 
-  // Pre-unlock AudioContext on first user click
+  // Pre-unlock AudioContext + preload BGM on first user click
   useEffect(() => {
-    const handler = () => { ensureChimeCtx(); };
+    const handler = () => {
+      ensureChimeCtx();
+      // Start preloading BGM in background — don't play, just buffer
+      if (!bgmAudioRef.current) {
+        const el = document.createElement('audio');
+        el.src = import.meta.env.BASE_URL + 'bgm.mp3';
+        el.loop = true;
+        el.volume = 0.15;
+        el.preload = 'auto';
+        el.style.display = 'none';
+        document.body.appendChild(el);
+        el.load(); // buffer now, play later
+        bgmAudioRef.current = el;
+      }
+    };
     window.addEventListener('click', handler, { once: true });
     window.addEventListener('touchend', handler, { once: true });
     return () => {
@@ -55,31 +69,28 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (rainAudioRef.current) { rainAudioRef.current.pause(); rainAudioRef.current.currentTime = 0; rainAudioRef.current = null; }
   }, []);
 
-  // === BGM — DOM-based for reliability ===
+  // === BGM — reuse preloaded element or create new ===
   const startBGM = useCallback(() => {
-    // Remove old element
     if (bgmAudioRef.current) {
-      bgmAudioRef.current.pause();
-      bgmAudioRef.current.remove();
-      bgmAudioRef.current = null;
+      // Already preloaded — just play
+      bgmAudioRef.current.play().catch(() => {});
+    } else {
+      const el = document.createElement('audio');
+      el.src = import.meta.env.BASE_URL + 'bgm.mp3';
+      el.loop = true;
+      el.volume = 0.15;
+      el.preload = 'auto';
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      el.play().catch(() => {});
+      bgmAudioRef.current = el;
     }
-    // Create real DOM <audio> element
-    const el = document.createElement('audio');
-    el.src = import.meta.env.BASE_URL + 'bgm.mp3';
-    el.loop = true;
-    el.volume = 0.15;
-    el.preload = 'auto';
-    el.style.display = 'none';
-    document.body.appendChild(el);
-    el.play().catch(() => {});
-    bgmAudioRef.current = el;
   }, []);
 
   const stopBGM = useCallback(() => {
     if (bgmAudioRef.current) {
       bgmAudioRef.current.pause();
-      bgmAudioRef.current.remove();
-      bgmAudioRef.current = null;
+      // Keep DOM element — already buffered, ready for next play
     }
   }, []);
 
@@ -130,10 +141,11 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Cleanup
   useEffect(() => {
     return () => {
-      stopRain(); stopBGM();
+      stopRain();
+      if (bgmAudioRef.current) { bgmAudioRef.current.pause(); bgmAudioRef.current.remove(); bgmAudioRef.current = null; }
       chimeCtxRef.current?.close().catch(() => {});
     };
-  }, [stopRain, stopBGM]);
+  }, [stopRain]);
 
   return (
     <SoundContext.Provider value={{ isSoundEnabled, toggleSound, playRaindropSound, playGlassChime }}>
