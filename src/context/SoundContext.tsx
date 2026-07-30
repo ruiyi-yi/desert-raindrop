@@ -21,6 +21,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const rainAudioRef = useRef<HTMLAudioElement | null>(null);
   const bgmAudioRef = useRef<HTMLAudioElement | null>(null);
   const chimeCtxRef = useRef<AudioContext | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const ensureChimeCtx = useCallback((): AudioContext => {
     if (!chimeCtxRef.current) {
@@ -41,7 +42,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [ensureChimeCtx]);
 
-  // === Rain loop — plain HTML Audio ===
+  // === Rain ===
   const startRain = useCallback(() => {
     const a = new Audio(import.meta.env.BASE_URL + 'rain-ambient.wav');
     a.loop = true;
@@ -51,39 +52,33 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const stopRain = useCallback(() => {
-    if (rainAudioRef.current) {
-      rainAudioRef.current.pause();
-      rainAudioRef.current.currentTime = 0;
-      rainAudioRef.current = null;
-    }
+    if (rainAudioRef.current) { rainAudioRef.current.pause(); rainAudioRef.current.currentTime = 0; rainAudioRef.current = null; }
   }, []);
 
-  // === BGM (wait for load before playing - large file needs buffering) ===
+  // === BGM — DOM-based for reliability ===
   const startBGM = useCallback(() => {
-    if (bgmAudioRef.current) { bgmAudioRef.current.pause(); bgmAudioRef.current = null; }
-    const a = new Audio(import.meta.env.BASE_URL + 'bgm.mp3');
-    a.loop = true;
-    a.volume = 0.15;
-    a.preload = 'auto';
-    // Play once data is ready; fallback: try direct play anyway
-    const playWhenReady = () => { a.play().catch(() => {}); };
-    if (a.readyState >= 2) {
-      playWhenReady();
-    } else {
-      a.addEventListener('canplay', playWhenReady, { once: true });
-      a.load();
-      // Safety timeout: if 'canplay' doesn't fire within 5s, try anyway
-      setTimeout(() => {
-        if (a.readyState < 2) playWhenReady();
-      }, 5000);
+    // Remove old element
+    if (bgmAudioRef.current) {
+      bgmAudioRef.current.pause();
+      bgmAudioRef.current.remove();
+      bgmAudioRef.current = null;
     }
-    bgmAudioRef.current = a;
+    // Create real DOM <audio> element
+    const el = document.createElement('audio');
+    el.src = import.meta.env.BASE_URL + 'bgm.mp3';
+    el.loop = true;
+    el.volume = 0.15;
+    el.preload = 'auto';
+    el.style.display = 'none';
+    document.body.appendChild(el);
+    el.play().catch(() => {});
+    bgmAudioRef.current = el;
   }, []);
 
   const stopBGM = useCallback(() => {
     if (bgmAudioRef.current) {
       bgmAudioRef.current.pause();
-      bgmAudioRef.current.currentTime = 0;
+      bgmAudioRef.current.remove();
       bgmAudioRef.current = null;
     }
   }, []);
@@ -98,7 +93,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [startRain, startBGM, stopRain, stopBGM]);
 
-  // === Click effects (still Web Audio — short sounds work reliably) ===
+  // === Click effects ===
   const playRaindropSound = useCallback(() => {
     if (!isSoundEnabled) return;
     try {
