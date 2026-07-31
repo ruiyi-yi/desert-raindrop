@@ -14,6 +14,7 @@ const P = (path: string) => path ? import.meta.env.BASE_URL + path : '';
 export const siteConfig = {
   birthday: '05-20',       // 改成她的生日
   birthdayName: '小方',    // 她的名字
+  birthdayWish: '',        // 填上你想对她说的生日祝福（留空则不显示）
 };
 
 /**
@@ -263,7 +264,9 @@ export const prefaceText = `写给小方，
 
 无数次我发在小号上的文字都围绕着一个感受展开：“探索欲与好奇心等同于爱。没有遍历的欲望就像鱼走上了陆地。”
 
-所以在闲暇之余做出了这个小小的网站，记录一些时刻。
+所以我想，看见、听见、读懂，保持好奇心与探索欲。
+
+在闲暇之余做出了这个小小的网站，记录一些时刻。
 
 往下翻，每一滴雨都是一个瞬间。
 

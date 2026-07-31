@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { memories } from '../data/memories';
+import { memories, siteConfig } from '../data/memories';
 import MemoryCard from './MemoryCard';
 import MessageDrop from './MessageDrop';
 import { useSound } from '../context/SoundContext';
@@ -284,6 +284,28 @@ const Timeline: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
           {/* Message drop — leave a note */}
           <MessageDrop />
+
+          {/* Birthday wish */}
+          {siteConfig.birthdayWish && (
+            <motion.div
+              className="relative flex flex-col items-center pb-8"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <div className="glass rounded-2xl px-8 py-6 max-w-sm text-center shadow-soft">
+                <div className="flex items-center justify-center gap-1.5 mb-4">
+                  <span className="text-sm">🎂</span>
+                  <span className="text-subtle text-[10px] tracking-[0.2em] text-ink-light/40">
+                    HAPPY BIRTHDAY
+                  </span>
+                </div>
+                <p className="text-diary text-sm md:text-base text-ink/70 leading-[2.2] whitespace-pre-line">
+                  {siteConfig.birthdayWish}
+                </p>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
 
