@@ -1,87 +1,132 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { memories } from '../data/memories';
+import { motion, AnimatePresence } from 'framer-motion';
+import { memories, loadingLyrics } from '../data/memories';
 
 interface PreloaderProps {
   onReady: () => void;
 }
 
-const LOADING_TEXTS = [
-  '正在收集雨滴…',
-  '正在翻阅记忆…',
-  '快要好了…',
-];
-
 const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
   const [progress, setProgress] = useState(0);
-  const [textIdx, setTextIdx] = useState(0);
+  const [lineIdx, setLineIdx] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const loadedCountRef = useRef(0);
 
-  // Canvas rain
+  // Rich rain canvas — more drops, mist, ripple
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let w = window.innerWidth;
+    let h = window.innerHeight;
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
-    ctx.scale(dpr, dpr);
 
-    const drops: Array<{ x: number; y: number; speed: number; len: number; op: number }> = [];
-    for (let i = 0; i < 60; i++) {
+    const resize = () => {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+    };
+    window.addEventListener('resize', resize);
+
+    // Raindrops
+    const drops: Array<{ x: number; y: number; speed: number; len: number; wd: number; op: number }> = [];
+    for (let i = 0; i < 80; i++) {
       drops.push({
         x: Math.random() * w,
         y: Math.random() * h,
-        speed: 0.5 + Math.random() * 1.5,
-        len: 10 + Math.random() * 20,
-        op: 0.1 + Math.random() * 0.25,
+        speed: 0.3 + Math.random() * 2.2,
+        len: 6 + Math.random() * 28,
+        wd: 0.3 + Math.random() * 1.4,
+        op: 0.08 + Math.random() * 0.28,
+      });
+    }
+
+    // Mist particles
+    const mists: Array<{ x: number; y: number; r: number; op: number; vx: number; vy: number }> = [];
+    for (let i = 0; i < 15; i++) {
+      mists.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 40 + Math.random() * 90,
+        op: 0.015 + Math.random() * 0.04,
+        vx: (Math.random() - 0.5) * 0.2,
+        vy: (Math.random() - 0.5) * 0.15,
       });
     }
 
     let raf = 0;
     const draw = () => {
+      ctx.save();
+      ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, w, h);
+
+      // Mist
+      mists.forEach((m) => {
+        m.x += m.vx; m.y += m.vy;
+        if (m.x < -100) m.x = w + 100;
+        if (m.x > w + 100) m.x = -100;
+        if (m.y < -100) m.y = h + 100;
+        if (m.y > h + 100) m.y = -100;
+        const g = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r);
+        g.addColorStop(0, `rgba(190,220,240,${m.op})`);
+        g.addColorStop(0.5, `rgba(200,225,240,${m.op * 0.5})`);
+        g.addColorStop(1, 'rgba(200,225,240,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2); ctx.fill();
+      });
+
+      // Raindrops
       drops.forEach((d) => {
         d.y += d.speed;
-        if (d.y > h + 20) { d.y = -20; d.x = Math.random() * w; }
-        ctx.strokeStyle = `rgba(160,210,235,${d.op})`;
-        ctx.lineWidth = 0.8;
+        if (d.y > h + 30) { d.y = -30; d.x = Math.random() * w; }
+        // Tail
+        ctx.strokeStyle = `rgba(150,210,235,${d.op})`;
+        ctx.lineWidth = d.wd;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(d.x, d.y);
         ctx.lineTo(d.x, d.y + d.len);
         ctx.stroke();
-        ctx.fillStyle = `rgba(180,220,240,${d.op * 0.6})`;
+        // Head dot
+        ctx.fillStyle = `rgba(175,220,242,${d.op * 0.7})`;
         ctx.beginPath();
-        ctx.arc(d.x, d.y, 1.2, 0, Math.PI * 2);
+        ctx.arc(d.x, d.y, d.wd * 1.3, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      ctx.restore();
       raf = requestAnimationFrame(draw);
     };
     draw();
-    return () => cancelAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+    };
   }, []);
 
-  // Progressive loading text changes
+  // Cycle through lyrics as loading progresses
   useEffect(() => {
-    if (progress < 0.5) setTextIdx(0);
-    else if (progress < 0.85) setTextIdx(1);
-    else setTextIdx(2);
+    if (loadingLyrics.length === 0) return;
+    const segSize = 1 / loadingLyrics.length;
+    const idx = Math.min(loadingLyrics.length - 1, Math.floor(progress / segSize));
+    setLineIdx(idx);
   }, [progress]);
 
-  // Preload all images + BGM
+  // Preload assets
   useEffect(() => {
-    const imagesToPreload = memories
-      .filter((m) => m.image)
-      .map((m) => m.image!);
-
+    const imagesToPreload = memories.filter((m) => m.image).map((m) => m.image!);
     const BGM_URL = import.meta.env.BASE_URL + 'bgm.mp3';
-    const total = imagesToPreload.length + 1; // +1 for BGM
+    const total = imagesToPreload.length + 1;
     let loaded = 0;
 
     const tick = () => {
@@ -89,15 +134,16 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       setProgress(Math.min(1, loaded / total));
     };
 
+    // BGM
     const bgm = new Audio(BGM_URL);
     bgm.preload = 'auto';
     bgm.volume = 0;
     bgm.addEventListener('canplaythrough', tick, { once: true });
     bgm.addEventListener('error', tick, { once: true });
     bgm.load();
-    // Safety: if BGM doesn't trigger canplaythrough in 8s, count it anyway
     setTimeout(() => { if (bgm.readyState < 2) tick(); }, 8000);
 
+    // Images
     imagesToPreload.forEach((src) => {
       const img = new Image();
       img.onload = tick;
@@ -105,75 +151,78 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       img.src = src;
     });
 
-    // Safety timeout: 15s max, then proceed anyway
     const safety = setTimeout(() => {
-      if (loaded < total) {
-        setProgress(1);
-        setTimeout(onReady, 600);
-      }
-    }, 15000);
+      if (loaded < total) { setProgress(1); }
+    }, 18000);
 
     return () => clearTimeout(safety);
   }, []);
 
-  // When all loaded, trigger transition
+  // Trigger transition when done
   useEffect(() => {
     if (progress >= 1) {
-      const t = setTimeout(onReady, 800);
+      const t = setTimeout(onReady, 1000);
       return () => clearTimeout(t);
     }
   }, [progress, onReady]);
 
+  const lyrics = loadingLyrics.length > 0 ? loadingLyrics : ['正在收集雨滴…'];
+
   return (
     <motion.div
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden"
-      style={{ background: 'linear-gradient(180deg, #C5DFF0 0%, #DCEBF4 30%, #E8F4FD 60%, #DCEBF4 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #B8D5E8 0%, #C8DFEE 25%, #D8E9F4 50%, #E8F4FD 80%, #DCEBF4 100%)' }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.6 }}
+      transition={{ duration: 0.8 }}
     >
       {/* Rain canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
+      <canvas ref={canvasRef} className="absolute inset-0" />
 
-      {/* Progress bar */}
-      <motion.div
-        className="relative w-48 md:w-64 h-[2px] mb-8 z-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="absolute inset-0 bg-white/30 rounded-full" />
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full"
-          style={{
-            background: 'linear-gradient(90deg, rgba(126,200,227,0.6), rgba(91,155,213,0.5))',
-            width: `${Math.round(progress * 100)}%`,
-          }}
-          transition={{ duration: 0.3 }}
-        />
-        {/* Raindrop at tip */}
-        <motion.div
-          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
-          style={{
-            left: `${Math.round(progress * 100)}%`,
-            background: 'rgba(126,200,227,0.8)',
-            boxShadow: '0 0 6px rgba(126,200,227,0.5)',
-          }}
-          animate={{ scale: [1, 1.4, 1] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        />
-      </motion.div>
+      {/* Central content */}
+      <div className="relative z-10 flex flex-col items-center px-8">
+        {/* Lyrics — large, poetic, cycling */}
+        <div className="min-h-[120px] flex items-center justify-center mb-12">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={lineIdx}
+              className="text-title text-xl md:text-3xl text-ink-dark/80 text-center leading-relaxed"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.7, ease: 'easeInOut' }}
+            >
+              {lyrics[lineIdx]?.split('').map((char, i) => (
+                <motion.span
+                  key={i}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.15 + i * 0.05, duration: 0.2 }}
+                  style={{ display: 'inline-block' }}
+                >
+                  {char === ' ' ? ' ' : char}
+                </motion.span>
+              ))}
+            </motion.p>
+          </AnimatePresence>
+        </div>
 
-      {/* Text */}
-      <motion.p
-        key={textIdx}
-        className="relative z-10 text-subtle text-xs md:text-sm tracking-[0.2em] text-ink-light/60"
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {LOADING_TEXTS[textIdx]}
-      </motion.p>
+        {/* Subtle progress */}
+        <motion.div
+          className="w-36 h-[2px] rounded-full overflow-hidden bg-white/20"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background: 'linear-gradient(90deg, rgba(126,200,227,0.5), rgba(91,155,213,0.6))',
+              width: `${Math.round(progress * 100)}%`,
+            }}
+            transition={{ duration: 0.4 }}
+          />
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
