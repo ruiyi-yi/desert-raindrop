@@ -7,10 +7,11 @@ import Timeline from './components/Timeline';
 import Preface from './components/Preface';
 import ReversePage from './components/ReversePage';
 import SoundToggle from './components/SoundToggle';
+import Preloader from './components/Preloader';
 import type { PageState } from './types';
 
 const App: React.FC = () => {
-  const [page, setPage] = useState<PageState>('opening');
+  const [page, setPage] = useState<PageState>('preloading');
   const [easterEggCount, setEasterEggCount] = useState(0);
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const easterEggTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -18,6 +19,7 @@ const App: React.FC = () => {
   // Update browser tab title per page
   useEffect(() => {
     const titles: Record<PageState, string> = {
+      preloading: '💧 沙漠一粒雨',
       opening: '💧 沙漠一粒雨',
       entry: '💧 沙漠一粒雨',
       preface: '📖 翻开记忆',
@@ -26,6 +28,10 @@ const App: React.FC = () => {
     };
     document.title = titles[page] || '沙漠一粒雨';
   }, [page]);
+
+  const handlePreloadingReady = useCallback(() => {
+    setPage('opening');
+  }, []);
 
   const handleOpeningComplete = useCallback(() => {
     setPage('entry');
@@ -72,6 +78,10 @@ const App: React.FC = () => {
     <SoundProvider>
       <div className="relative w-full h-screen overflow-hidden bg-sky-pale">
         <AnimatePresence mode="wait">
+          {page === 'preloading' && (
+            <Preloader key="preloader" onReady={handlePreloadingReady} />
+          )}
+
           {page === 'opening' && (
             <Opening key="opening" onComplete={handleOpeningComplete} />
           )}

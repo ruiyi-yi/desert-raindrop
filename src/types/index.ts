@@ -12,7 +12,7 @@ export interface ReverseMemory {
   text: string;
 }
 
-export type PageState = 'opening' | 'entry' | 'preface' | 'timeline' | 'reverse';
+export type PageState = 'preloading' | 'opening' | 'entry' | 'preface' | 'timeline' | 'reverse';
 
 export interface RaindropObj {
   x: number;
