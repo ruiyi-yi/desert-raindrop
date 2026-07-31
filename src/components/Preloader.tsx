@@ -116,9 +116,12 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
 
   // Pick ONE random lyric + ONE random loading phrase each visit
   const [chosen] = useState(() => {
-    if (loadingLyrics.length === 0) return { lyric: '正在收集雨滴…', song: '' };
-    const item = loadingLyrics[Math.floor(Math.random() * loadingLyrics.length)];
-    // Support both old string format and new {lyric, song} format
+    const filled = loadingLyrics.filter((item) => {
+      const lyric = typeof item === 'string' ? item : item.lyric;
+      return lyric && lyric.trim().length > 0;
+    });
+    if (filled.length === 0) return { lyric: '正在收集雨滴…', song: '' };
+    const item = filled[Math.floor(Math.random() * filled.length)];
     if (typeof item === 'string') return { lyric: item, song: '' };
     return item;
   });
