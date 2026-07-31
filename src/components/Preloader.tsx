@@ -141,43 +141,32 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     return loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
   });
 
-  // Preload assets — BGM via fetch (guarantees full download), images via Image()
+  // Preload assets — BGM + images
   useEffect(() => {
     const imagesToPreload = memories.filter((m) => m.image).map((m) => m.image!);
     const BGM_URL = import.meta.env.BASE_URL + 'bgm.mp3';
     const total = imagesToPreload.length + 1;
     let loaded = 0;
-    let bgmDone = false;
 
     const tick = () => {
       loaded++;
       setProgress(Math.min(1, loaded / total));
     };
 
-    // BGM: use fetch() to guarantee the full file is downloaded
-    fetch(BGM_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error('BGM fetch failed');
-        // Read the stream to track real download progress
-        const contentLength = Number(res.headers.get('content-length')) || 4669554;
-        const reader = res.body!.getReader();
-        const chunks: Uint8Array[] = [];
-        let received = 0;
-        const read = (): Promise<void> =>
-          reader.read().then(({ done, value }) => {
-            if (done) {
-              // Fully downloaded — create blob and store in global cache
-              const blob = new Blob(chunks, { type: 'audio/mp3' });
-              (window as any).__bgmBlob = URL.createObjectURL(blob);
-              if (!bgmDone) { bgmDone = true; tick(); }
-              return;
-            }
-            if (value) { chunks.push(value); received += value.length; }
-            return read();
-          });
-        return read();
-      })
-      .catch(() => { if (!bgmDone) { bgmDone = true; tick(); } });
+    // BGM: preload with Audio element, then cache in global for SoundContext
+    const bgm = new Audio();
+    bgm.preload = 'auto';
+    bgm.volume = 0;
+    bgm.src = BGM_URL;
+    bgm.addEventListener('canplaythrough', () => {
+      (window as any).__bgmReady = true;
+      tick();
+    }, { once: true });
+    bgm.addEventListener('error', () => tick(), { once: true });
+    bgm.load();
+    // Store reference so SoundContext can reuse
+    (window as any).__bgmAudio = bgm;
+    setTimeout(() => { if (!(window as any).__bgmReady) tick(); }, 10000);
 
     // Images
     imagesToPreload.forEach((src) => {
@@ -187,7 +176,6 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       img.src = src;
     });
 
-    // Safety: if images + BGM not all done in 25s, proceed anyway
     const safety = setTimeout(() => {
       if (loaded < total) { setProgress(1); }
     }, 25000);
