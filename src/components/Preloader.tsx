@@ -114,10 +114,23 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     };
   }, []);
 
-  // Pick ONE random lyric each visit — different every time
+  // Pick ONE random lyric + ONE random loading phrase each visit
   const [lyric] = useState(() => {
     if (loadingLyrics.length === 0) return '正在收集雨滴…';
     return loadingLyrics[Math.floor(Math.random() * loadingLyrics.length)];
+  });
+
+  const loadingPhrases = [
+    '—— 雨滴正在落下来 ——',
+    '—— 请稍等，雨还在下 ——',
+    '—— 正在收集这些雨水 ——',
+    '—— 记忆在雨中慢慢浮现 ——',
+    '—— 那些日子正在加载 ——',
+    '—— 很快就能见面了 ——',
+  ];
+
+  const [loadingPhrase] = useState(() => {
+    return loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
   });
 
   // Preload assets — BGM via fetch (guarantees full download), images via Image()
@@ -216,6 +229,16 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
             ))}
           </motion.p>
         </div>
+
+        {/* Loading subtitle */}
+        <motion.p
+          className="text-subtle text-xs md:text-sm tracking-[0.2em] text-ink-light/40 mb-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
+        >
+          {loadingPhrase}
+        </motion.p>
 
         {/* Subtle progress */}
         <motion.div
