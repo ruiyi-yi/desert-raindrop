@@ -9,6 +9,8 @@ interface PreloaderProps {
 const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
   const [progress, setProgress] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const startTimeRef = useRef(Date.now());
+  const MIN_DISPLAY_MS = 4500; // loading screen shows at least 4.5 seconds
 
   // Rich rain canvas — more drops, mist, ripple
   useEffect(() => {
@@ -172,12 +174,13 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     return () => clearTimeout(safety);
   }, []);
 
-  // Trigger transition when done
+  // Trigger transition only when assets loaded AND minimum display time passed
   useEffect(() => {
-    if (progress >= 1) {
-      const t = setTimeout(onReady, 1000);
-      return () => clearTimeout(t);
-    }
+    if (progress < 1) return;
+    const elapsed = Date.now() - startTimeRef.current;
+    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
+    const t = setTimeout(onReady, remaining + 600);
+    return () => clearTimeout(t);
   }, [progress, onReady]);
 
   return (
