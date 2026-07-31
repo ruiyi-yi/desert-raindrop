@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { memories, loadingLyrics } from '../data/memories';
 
 interface PreloaderProps {
@@ -8,9 +8,7 @@ interface PreloaderProps {
 
 const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
   const [progress, setProgress] = useState(0);
-  const [lineIdx, setLineIdx] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const loadedCountRef = useRef(0);
 
   // Rich rain canvas — more drops, mist, ripple
   useEffect(() => {
@@ -114,23 +112,11 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     };
   }, []);
 
-  // Shuffle lyrics randomly on mount
-  const [lyrics] = useState(() => {
-    const arr = loadingLyrics.length > 0 ? [...loadingLyrics] : ['正在收集雨滴…'];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+  // Pick ONE random lyric each visit — different every time
+  const [lyric] = useState(() => {
+    if (loadingLyrics.length === 0) return '正在收集雨滴…';
+    return loadingLyrics[Math.floor(Math.random() * loadingLyrics.length)];
   });
-
-  // Cycle through shuffled lyrics as loading progresses
-  useEffect(() => {
-    if (lyrics.length === 0) return;
-    const segSize = 1 / lyrics.length;
-    const idx = Math.min(lyrics.length - 1, Math.floor(progress / segSize));
-    setLineIdx(idx);
-  }, [progress, lyrics]);
 
   // Preload assets — BGM via fetch (guarantees full download), images via Image()
   useEffect(() => {
@@ -208,28 +194,24 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       <div className="relative z-10 flex flex-col items-center px-8">
         {/* Lyrics — large, poetic, cycling */}
         <div className="min-h-[120px] flex items-center justify-center mb-12">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={lineIdx}
-              className="text-title text-xl md:text-3xl text-ink-dark/80 text-center leading-relaxed"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.7, ease: 'easeInOut' }}
-            >
-              {lyrics[lineIdx]?.split('').map((char, i) => (
-                <motion.span
-                  key={i}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.15 + i * 0.05, duration: 0.2 }}
-                  style={{ display: 'inline-block' }}
-                >
-                  {char === ' ' ? ' ' : char}
-                </motion.span>
-              ))}
-            </motion.p>
-          </AnimatePresence>
+          <motion.p
+            className="text-title text-xl md:text-3xl text-ink-dark/80 text-center leading-relaxed"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: 'easeInOut' }}
+          >
+            {lyric.split('').map((char, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.15 + i * 0.05, duration: 0.2 }}
+                style={{ display: 'inline-block' }}
+              >
+                {char === ' ' ? ' ' : char}
+              </motion.span>
+            ))}
+          </motion.p>
         </div>
 
         {/* Subtle progress */}
