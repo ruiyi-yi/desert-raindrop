@@ -114,34 +114,61 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     };
   }, []);
 
-  // Cycle through lyrics as loading progresses
-  useEffect(() => {
-    if (loadingLyrics.length === 0) return;
-    const segSize = 1 / loadingLyrics.length;
-    const idx = Math.min(loadingLyrics.length - 1, Math.floor(progress / segSize));
-    setLineIdx(idx);
-  }, [progress]);
+  // Shuffle lyrics randomly on mount
+  const [lyrics] = useState(() => {
+    const arr = loadingLyrics.length > 0 ? [...loadingLyrics] : ['正在收集雨滴…'];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  });
 
-  // Preload assets
+  // Cycle through shuffled lyrics as loading progresses
+  useEffect(() => {
+    if (lyrics.length === 0) return;
+    const segSize = 1 / lyrics.length;
+    const idx = Math.min(lyrics.length - 1, Math.floor(progress / segSize));
+    setLineIdx(idx);
+  }, [progress, lyrics]);
+
+  // Preload assets — BGM via fetch (guarantees full download), images via Image()
   useEffect(() => {
     const imagesToPreload = memories.filter((m) => m.image).map((m) => m.image!);
     const BGM_URL = import.meta.env.BASE_URL + 'bgm.mp3';
     const total = imagesToPreload.length + 1;
     let loaded = 0;
+    let bgmDone = false;
 
     const tick = () => {
       loaded++;
       setProgress(Math.min(1, loaded / total));
     };
 
-    // BGM
-    const bgm = new Audio(BGM_URL);
-    bgm.preload = 'auto';
-    bgm.volume = 0;
-    bgm.addEventListener('canplaythrough', tick, { once: true });
-    bgm.addEventListener('error', tick, { once: true });
-    bgm.load();
-    setTimeout(() => { if (bgm.readyState < 2) tick(); }, 8000);
+    // BGM: use fetch() to guarantee the full file is downloaded
+    fetch(BGM_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error('BGM fetch failed');
+        // Read the stream to track real download progress
+        const contentLength = Number(res.headers.get('content-length')) || 4669554;
+        const reader = res.body!.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        const read = (): Promise<void> =>
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              // Fully downloaded — create blob and store in global cache
+              const blob = new Blob(chunks, { type: 'audio/mp3' });
+              (window as any).__bgmBlob = URL.createObjectURL(blob);
+              if (!bgmDone) { bgmDone = true; tick(); }
+              return;
+            }
+            if (value) { chunks.push(value); received += value.length; }
+            return read();
+          });
+        return read();
+      })
+      .catch(() => { if (!bgmDone) { bgmDone = true; tick(); } });
 
     // Images
     imagesToPreload.forEach((src) => {
@@ -151,9 +178,10 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       img.src = src;
     });
 
+    // Safety: if images + BGM not all done in 25s, proceed anyway
     const safety = setTimeout(() => {
       if (loaded < total) { setProgress(1); }
-    }, 18000);
+    }, 25000);
 
     return () => clearTimeout(safety);
   }, []);
@@ -165,8 +193,6 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       return () => clearTimeout(t);
     }
   }, [progress, onReady]);
-
-  const lyrics = loadingLyrics.length > 0 ? loadingLyrics : ['正在收集雨滴…'];
 
   return (
     <motion.div

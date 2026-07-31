@@ -35,16 +35,17 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const handler = () => {
       ensureChimeCtx();
-      // Start preloading BGM in background — don't play, just buffer
+      // Start preloading BGM in background
       if (!bgmAudioRef.current) {
         const el = document.createElement('audio');
-        el.src = import.meta.env.BASE_URL + 'bgm.mp3';
+        const blobUrl = (window as any).__bgmBlob;
+        el.src = blobUrl || import.meta.env.BASE_URL + 'bgm.mp3';
         el.loop = true;
         el.volume = 0.15;
         el.preload = 'auto';
         el.style.display = 'none';
         document.body.appendChild(el);
-        el.load(); // buffer now, play later
+        el.load();
         bgmAudioRef.current = el;
       }
     };
@@ -69,22 +70,23 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (rainAudioRef.current) { rainAudioRef.current.pause(); rainAudioRef.current.currentTime = 0; rainAudioRef.current = null; }
   }, []);
 
-  // === BGM — reuse preloaded element or create new ===
+  // === BGM — use preloaded blob if available, otherwise fetch ===
   const startBGM = useCallback(() => {
     if (bgmAudioRef.current) {
-      // Already preloaded — just play
       bgmAudioRef.current.play().catch(() => {});
-    } else {
-      const el = document.createElement('audio');
-      el.src = import.meta.env.BASE_URL + 'bgm.mp3';
-      el.loop = true;
-      el.volume = 0.15;
-      el.preload = 'auto';
-      el.style.display = 'none';
-      document.body.appendChild(el);
-      el.play().catch(() => {});
-      bgmAudioRef.current = el;
+      return;
     }
+    const el = document.createElement('audio');
+    el.loop = true;
+    el.volume = 0.15;
+    el.preload = 'auto';
+    el.style.display = 'none';
+    // Use preloaded blob URL (fully downloaded by Preloader) if available
+    const blobUrl = (window as any).__bgmBlob;
+    el.src = blobUrl || import.meta.env.BASE_URL + 'bgm.mp3';
+    document.body.appendChild(el);
+    el.play().catch(() => {});
+    bgmAudioRef.current = el;
   }, []);
 
   const stopBGM = useCallback(() => {
