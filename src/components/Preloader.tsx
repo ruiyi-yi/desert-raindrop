@@ -10,7 +10,7 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
   const [progress, setProgress] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const startTimeRef = useRef(Date.now());
-  const MIN_DISPLAY_MS = 4500; // loading screen shows at least 4.5 seconds
+  const MIN_DISPLAY_MS = 5500; // loading screen shows at least 5.5 seconds
 
   // Rich rain canvas — more drops, mist, ripple
   useEffect(() => {
@@ -221,7 +221,7 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
                 key={i}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.15 + i * 0.05, duration: 0.2 }}
+                transition={{ delay: 0.3 + i * 0.09, duration: 0.3 }}
                 style={{ display: 'inline-block' }}
               >
                 {char === ' ' ? ' ' : char}
