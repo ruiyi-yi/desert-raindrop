@@ -141,11 +141,11 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     return loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
   });
 
-  // Preload assets — BGM + images
+  // Preload images fast (BGM loads in background, doesn't block loading screen)
   useEffect(() => {
     const imagesToPreload = memories.filter((m) => m.image).map((m) => m.image!);
-    const BGM_URL = import.meta.env.BASE_URL + 'bgm.mp3';
-    const total = imagesToPreload.length + 1;
+    const total = imagesToPreload.length;
+    if (total === 0) { setProgress(1); return; }
     let loaded = 0;
 
     const tick = () => {
@@ -153,22 +153,6 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       setProgress(Math.min(1, loaded / total));
     };
 
-    // BGM: preload with Audio element, then cache in global for SoundContext
-    const bgm = new Audio();
-    bgm.preload = 'auto';
-    bgm.volume = 0;
-    bgm.src = BGM_URL;
-    bgm.addEventListener('canplaythrough', () => {
-      (window as any).__bgmReady = true;
-      tick();
-    }, { once: true });
-    bgm.addEventListener('error', () => tick(), { once: true });
-    bgm.load();
-    // Store reference so SoundContext can reuse
-    (window as any).__bgmAudio = bgm;
-    setTimeout(() => { if (!(window as any).__bgmReady) tick(); }, 10000);
-
-    // Images
     imagesToPreload.forEach((src) => {
       const img = new Image();
       img.onload = tick;
@@ -176,9 +160,17 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       img.src = src;
     });
 
+    // BGM: start loading in background, don't block
+    const bgm = new Audio();
+    bgm.preload = 'auto';
+    bgm.volume = 0;
+    bgm.src = import.meta.env.BASE_URL + 'bgm.mp3';
+    bgm.load();
+    (window as any).__bgmAudio = bgm;
+
     const safety = setTimeout(() => {
       if (loaded < total) { setProgress(1); }
-    }, 25000);
+    }, 15000);
 
     return () => clearTimeout(safety);
   }, []);
