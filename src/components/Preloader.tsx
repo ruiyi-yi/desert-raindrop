@@ -115,10 +115,15 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
   }, []);
 
   // Pick ONE random lyric + ONE random loading phrase each visit
-  const [lyric] = useState(() => {
-    if (loadingLyrics.length === 0) return '正在收集雨滴…';
-    return loadingLyrics[Math.floor(Math.random() * loadingLyrics.length)];
+  const [chosen] = useState(() => {
+    if (loadingLyrics.length === 0) return { lyric: '正在收集雨滴…', song: '' };
+    const item = loadingLyrics[Math.floor(Math.random() * loadingLyrics.length)];
+    // Support both old string format and new {lyric, song} format
+    if (typeof item === 'string') return { lyric: item, song: '' };
+    return item;
   });
+  const lyric = chosen.lyric;
+  const song = chosen.song;
 
   const loadingPhrases = [
     '—— 雨滴正在落下来 ——',
@@ -230,12 +235,24 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
           </motion.p>
         </div>
 
+        {/* Song title */}
+        {song && (
+          <motion.p
+            className="text-diary text-xs md:text-sm text-ink-light/50 text-center mb-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.0, duration: 0.8 }}
+          >
+            {song}
+          </motion.p>
+        )}
+
         {/* Loading subtitle */}
         <motion.p
-          className="text-subtle text-xs md:text-sm tracking-[0.2em] text-ink-light/40 mb-8"
+          className="text-subtle text-xs md:text-sm tracking-[0.2em] text-ink-light/35 mb-8"
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
+          animate={{ opacity: 0.5 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
         >
           {loadingPhrase}
         </motion.p>
