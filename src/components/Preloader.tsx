@@ -141,10 +141,14 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
     return loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
   });
 
-  // Preload images fast (BGM loads in background, doesn't block loading screen)
+  // Preload ALL assets — images + audio (BGM + rain) — before entering
   useEffect(() => {
     const imagesToPreload = memories.filter((m) => m.image).map((m) => m.image!);
-    const total = imagesToPreload.length;
+    const audioToPreload = [
+      import.meta.env.BASE_URL + 'bgm.mp3',
+      import.meta.env.BASE_URL + 'rain-ambient.wav',
+    ];
+    const total = imagesToPreload.length + audioToPreload.length;
     if (total === 0) { setProgress(1); return; }
     let loaded = 0;
 
@@ -153,6 +157,7 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       setProgress(Math.min(1, loaded / total));
     };
 
+    // Images
     imagesToPreload.forEach((src) => {
       const img = new Image();
       img.onload = tick;
@@ -160,17 +165,43 @@ const Preloader: React.FC<PreloaderProps> = ({ onReady }) => {
       img.src = src;
     });
 
-    // BGM: start loading in background, don't block
-    const bgm = new Audio();
-    bgm.preload = 'auto';
-    bgm.volume = 0;
-    bgm.src = import.meta.env.BASE_URL + 'bgm.mp3';
-    bgm.load();
-    (window as any).__bgmAudio = bgm;
+    // Audio (BGM + rain): block until fully buffered / ready to play
+    const audioEls = audioToPreload.map((src) => {
+      const a = new Audio();
+      a.preload = 'auto';
+      a.volume = 0;
+      a.src = src;
+      let done = false;
+      const markLoaded = () => {
+        if (done) return;
+        done = true;
+        tick();
+      };
+      // Fully-buffered check (fires as data streams in)
+      a.addEventListener('progress', () => {
+        if (done) return;
+        try {
+          if (isFinite(a.duration) && a.duration > 0 && a.buffered.length > 0) {
+            const end = a.buffered.end(a.buffered.length - 1);
+            if (end >= a.duration - 0.5) markLoaded();
+          }
+        } catch { /* ignore */ }
+      });
+      // Fallback signals
+      a.addEventListener('canplaythrough', markLoaded, { once: true });
+      a.addEventListener('error', markLoaded, { once: true });
+      a.load();
+      return a;
+    });
 
+    // Stash for SoundContext reuse (so sound starts instantly on toggle)
+    (window as any).__bgmAudio = audioEls[0];
+    (window as any).__rainAudio = audioEls[1];
+
+    // Safety backstop — never hang forever even if something stalls
     const safety = setTimeout(() => {
       if (loaded < total) { setProgress(1); }
-    }, 15000);
+    }, 60000);
 
     return () => clearTimeout(safety);
   }, []);

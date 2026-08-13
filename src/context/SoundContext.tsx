@@ -53,6 +53,18 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // === Rain ===
   const startRain = useCallback(() => {
+    // Reuse preloaded rain audio if available
+    if (!rainAudioRef.current && (window as any).__rainAudio) {
+      const el = (window as any).__rainAudio as HTMLAudioElement;
+      el.loop = true;
+      el.volume = 0.1;
+      rainAudioRef.current = el;
+    }
+    if (rainAudioRef.current) {
+      rainAudioRef.current.play().catch(() => {});
+      return;
+    }
+    // Fallback: create new
     const a = new Audio(import.meta.env.BASE_URL + 'rain-ambient.wav');
     a.loop = true;
     a.volume = 0.1;
@@ -145,6 +157,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       stopRain();
       if (bgmAudioRef.current) { bgmAudioRef.current.pause(); bgmAudioRef.current = null; }
       if ((window as any).__bgmAudio) { delete (window as any).__bgmAudio; }
+      if ((window as any).__rainAudio) { delete (window as any).__rainAudio; }
       chimeCtxRef.current?.close().catch(() => {});
     };
   }, [stopRain]);
