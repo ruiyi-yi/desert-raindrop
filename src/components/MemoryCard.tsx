@@ -120,7 +120,7 @@ const MemoryCard: React.FC<MemoryCardProps> = ({ memory, isOpen, onClose }) => {
 
             {/* Text - character by character */}
             <motion.div
-              className="text-diary text-sm md:text-base text-ink leading-[2.2]"
+              className="text-diary text-sm md:text-base text-ink leading-[2.2] whitespace-pre-line"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
